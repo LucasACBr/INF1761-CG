@@ -33,21 +33,25 @@ static GLuint sphere_vao;
 static GLuint cube_vao;
 static GLuint patch_vao;
 static GLuint sky_vao;
+static GLuint quad_vao;
 static GLuint f_pid;
 static GLuint s_pid;
 static GLuint sky_pid;
-static GLuint R=60;
+static GLuint R = 60;
 static GLuint depth;
-static GLuint DIM=1024;
+static GLuint DIM = 2048;
 static GLuint fbo;
 static GLint texSmile;
+static GLint texEarth;
+//static GLint loc_sampler;
 glm::mat4 proj;
 glm::mat4 sproj;
 glm::mat4 sview;
 glm::mat4 view;
+glm::mat4 svp;
 glm::vec3 peye;
-static float viewer_pos[4] = { 1.0f, 4.0f, 6.0f, 1.0f };
-static float light[4] = { 1.0f, 4.0f, 6.0f,1.0f}; // light pos in eye space
+static float viewer_pos[4] = { 1.0f, 3.0f, 4.0f, 1.0f };
+static float light[4] = { 1.0f, 3.0f, 4.0f,1.0f }; // light pos in eye space
 
 //Variaveis para controle de camera ArcBall
 GLfloat dist1, dist2;
@@ -85,19 +89,19 @@ static Material mat = {
 
 static void loadProjectionMatrix(GLuint pid) //deve ser chamado antes de loadar a matriz
 {
-
     glUseProgram(pid); //rendering shaders
     //projection matrix
     glm::mat4 transl = glm::translate(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
     glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.5f));
-    glm::mat4 svp = transl * scale * sproj * sview;
+    svp = transl * scale * sproj * sview;
     GLint loc_svp = glGetUniformLocation(pid, "svp");
     glUniformMatrix4fv(loc_svp, 1, GL_FALSE, glm::value_ptr(svp));
+
 }
 
 
 
-static void loadMaterial(GLuint pid, GLuint index,GLuint bind,glm::vec4 ma, glm::vec4 md, glm::vec4 ms) //deve ser chamado antes de loadar a matriz
+static void loadMaterial(GLuint pid, GLuint index, GLuint bind, glm::vec4 ma, glm::vec4 md, glm::vec4 ms) //deve ser chamado antes de loadar a matriz
 {
 
     GLint loc_ma = glGetUniformLocation(f_pid, "ma");
@@ -112,61 +116,29 @@ static void loadMaterial(GLuint pid, GLuint index,GLuint bind,glm::vec4 ma, glm:
     glUniform4fv(loc_ms, 1, glm::value_ptr(ms));
 }
 
-static void loadMatrices(GLuint pid,glm::mat4 model)
+static void loadMatrices(GLuint pid, glm::mat4 model)
 {
-     glm::mat4 mv =  view * model;
-     glm::mat4 mvp = proj * mv;
-     //glm::mat4 inv = glm::inverse(mv);
-     //glm::mat4 nm = glm::transpose(glm::inverse(mv));
-
-
-     //GLint loc_mv = glGetUniformLocation(pid, "mv");
-     GLint loc_mvp = glGetUniformLocation(pid, "mvp");
-     //GLint loc_inv = glGetUniformLocation(pid, "inv");
-     //GLint loc_nm = glGetUniformLocation(pid, "nm");
-     GLint loc_model = glGetUniformLocation(pid, "model");
-     GLint loc_view = glGetUniformLocation(pid, "view");
-     GLint loc_proj = glGetUniformLocation(pid, "proj");
-
-     glUseProgram(pid);
-     //glUniformMatrix4fv(loc_mv, 1, GL_FALSE, glm::value_ptr(mv));
-     glUniformMatrix4fv(loc_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-     //glUniformMatrix4fv(loc_inv, 1, GL_FALSE, glm::value_ptr(inv));
-     //glUniformMatrix4fv(loc_nm, 1, GL_FALSE, glm::value_ptr(nm));
-     glUniformMatrix4fv(loc_model, 1, GL_FALSE, glm::value_ptr(model));
-     glUniformMatrix4fv(loc_view, 1, GL_FALSE, glm::value_ptr(view));
-     glUniformMatrix4fv(loc_proj, 1, GL_FALSE, glm::value_ptr(proj));
-     
-}
-
-/*
-static void loadShadowMatrices(GLuint pid, glm::mat4 model)
-{
-    glm::mat4 mv = view * model;
+    //glm::mat4 mv = view * model;
     //glm::mat4 mvp = proj * mv;
     //glm::mat4 inv = glm::inverse(mv);
     //glm::mat4 nm = glm::transpose(glm::inverse(mv));
-
-
-    //GLint loc_mv = glGetUniformLocation(pid, "mv");
-    //GLint loc_mvp = glGetUniformLocation(pid, "mvp");
-    //GLint loc_inv = glGetUniformLocation(pid, "inv");
-    //GLint loc_nm = glGetUniformLocation(pid, "nm");
     GLint loc_model = glGetUniformLocation(pid, "model");
-    GLint loc_view = glGetUniformLocation(pid, "view");
-    GLint loc_proj = glGetUniformLocation(pid, "proj");
+    glUseProgram(pid);
+    glUniformMatrix4fv(loc_model, 1, GL_FALSE, glm::value_ptr(model));
+}
+
+static void loadShadowMatrices(GLuint pid, glm::mat4 model)
+{
+    //glm::mat4 mv = sview * model;
+    //glm::mat4 mvp = sproj * mv;
+    //glm::mat4 inv = glm::inverse(mv);
+    //glm::mat4 nm = glm::transpose(glm::inverse(mv));
+    GLint loc_model = glGetUniformLocation(pid, "model");
 
     glUseProgram(pid);
-    //glUniformMatrix4fv(loc_mv, 1, GL_FALSE, glm::value_ptr(mv));
-    //glUniformMatrix4fv(loc_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-    //glUniformMatrix4fv(loc_inv, 1, GL_FALSE, glm::value_ptr(inv));
-    //glUniformMatrix4fv(loc_nm, 1, GL_FALSE, glm::value_ptr(nm));
     glUniformMatrix4fv(loc_model, 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(loc_view, 1, GL_FALSE, glm::value_ptr(sview));
-    glUniformMatrix4fv(loc_proj, 1, GL_FALSE, glm::value_ptr(sproj));
-
 }
-*/
+
 /*
 static void loadMatricesSky(GLuint pid)
 {
@@ -181,52 +153,87 @@ static void loadMatricesSky(GLuint pid)
 
 }
 */
+
+static GLuint createQuadScreen(void)
+{
+    float coord[] = {
+      -1.0f,-1.0f,
+      -1.0f, 1.0f,
+       1.0f,-1.0f,
+       1.0f, 1.0f
+    };
+    float texcoord[] = {
+      0.0f,0.0f,
+      0.0f,1.0f,
+      1.0f,0.0f,
+      1.0f,1.0f
+    };
+    GLuint vao = CreateVAO();
+    CreateBuffer(GL_ARRAY_BUFFER, sizeof(coord), (GLvoid*)coord);
+    VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    CreateBuffer(GL_ARRAY_BUFFER, sizeof(texcoord), (GLvoid*)texcoord);
+    VertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    return vao;
+}
+
+static void drawQuadScreen(void)
+{
+    /*GLint loc_sampler = glGetUniformLocation(f_pid, "smile");
+    glUniform1i(loc_sampler, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, depth);*/
+
+    glBindVertexArray(quad_vao);    // esse vao é retornado pela funcao createQuadScreen acima, na inicializacao
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
 unsigned int CreateDepthTexture(int width, int height)
 {
     GLuint tex;
-    glGenTextures(1,&tex);
-    glBindTexture(GL_TEXTURE_2D,tex);
-    glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT, width,height,0,
-        GL_DEPTH_COMPONENT,GL_FLOAT,0);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, width, height, 0,
+        GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE,
         GL_COMPARE_REF_TO_TEXTURE);
-    glBindTexture(GL_TEXTURE_2D,0);
+    glBindTexture(GL_TEXTURE_2D, 0);
     return tex;
 }
 
 
-GLuint CreateTexture2D(const char * filename)
+GLuint CreateTexture2D(const char* filename)
 {
     GLuint tex;
     int width, height, nchannels;
-    unsigned char *data = stbi_load(filename,&width,&height,&nchannels,3);
+    unsigned char* data = stbi_load(filename, &width, &height, &nchannels, 3);
     if (!data) return 0;
-    glGenTextures(1,&tex);
-    glBindTexture(GL_TEXTURE_2D,tex);
-    glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,width,height,0,GL_RGB,GL_UNSIGNED_BYTE,data);
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri (GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
-    glTexParameteri (GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
-    glTexParameteri (GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri (GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     stbi_image_free(data);
     return tex;
 }
 
-static unsigned char* extract_subimage(int W, int n, unsigned char* data,int x, int y, int w, int h)
+static unsigned char* extract_subimage(int W, int n, unsigned char* data, int x, int y, int w, int h)
 {
-    unsigned char*img =(unsigned char*)malloc(w*h*n);
-    for(int i = 0; i < h; ++i) {
-        memcpy(img+(i*w)*n, data +((y+i)*W+x)*n,w*n);
+    unsigned char* img = (unsigned char*)malloc(w * h * n);
+    for (int i = 0; i < h; ++i) {
+        memcpy(img + (i * w) * n, data + ((y + i) * W + x) * n, w * n);
     }
     return img;
 }
-
+/*
 unsigned char CreateSkyBox(const char* filename)
 {
     int width, height, nchannels;
@@ -240,9 +247,9 @@ unsigned char CreateSkyBox(const char* filename)
     glBindTexture(GL_TEXTURE_CUBE_MAP, tex);
 
     //subimages’ dimension
-    int w = width/4, h = height/3;
-    int x[] = {2*w, 0, w, w, w,3*w};
-    int y[] = { h, h, 0,2*h, h, h};
+    int w = width / 4, h = height / 3;
+    int x[] = { 2 * w, 0, w, w, w,3 * w };
+    int y[] = { h, h, 0,2 * h, h, h };
     GLenum face[] = {
     GL_TEXTURE_CUBE_MAP_POSITIVE_X, // right
     GL_TEXTURE_CUBE_MAP_NEGATIVE_X, // left
@@ -251,20 +258,20 @@ unsigned char CreateSkyBox(const char* filename)
     GL_TEXTURE_CUBE_MAP_POSITIVE_Z, // front
     GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, // back
     };
-    for(int i = 0; i < 6; ++i) {
-        unsigned char * img = extract_subimage(width,nchannels,data,x[i],y[i],w,h);
-        glTexImage2D(face[i],0,GL_RGB,w,h,0,nchannels==3?GL_RGB:GL_RGBA,GL_UNSIGNED_BYTE,img);
+    for (int i = 0; i < 6; ++i) {
+        unsigned char* img = extract_subimage(width, nchannels, data, x[i], y[i], w, h);
+        glTexImage2D(face[i], 0, GL_RGB, w, h, 0, nchannels == 3 ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE, img);
         free(img);
     }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_R,GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     stbi_image_free(data);
     return tex;
 }
-
+*/
 
 static void getCoord(float s, float t, float* x, float* y, float* z)
 {
@@ -329,7 +336,7 @@ static GLuint createSphere(int nx, int ny)
     int tsize = 2 * (nx + 1) * (ny + 1);
     float* texcoord;
     float* tangent;
-    float* coord = sphereCoords(nx, ny, &texcoord,&tangent);
+    float* coord = sphereCoords(nx, ny, &texcoord, &tangent);
     int isize = 6 * nx * ny;
     unsigned int* index = sphereIncidence(nx, ny);
     GLuint vao = CreateVAO();
@@ -340,7 +347,7 @@ static GLuint createSphere(int nx, int ny)
     VertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
     CreateBuffer(GL_ARRAY_BUFFER, csize * sizeof(float), (GLvoid*)tangent);
     VertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    CreateBuffer(GL_ELEMENT_ARRAY_BUFFER, isize * sizeof(unsigned int),(GLvoid*)index);
+    CreateBuffer(GL_ELEMENT_ARRAY_BUFFER, isize * sizeof(unsigned int), (GLvoid*)index);
     free(index);
     free(coord);
     free(texcoord);
@@ -348,20 +355,6 @@ static GLuint createSphere(int nx, int ny)
     return vao;
 }
 
-/*
-glm::vec3 * cubeNormals(GLfloat* cube_vertices)
-{
-    GLint index = 0;
-    glm::vec3* normalMap = (glm::vec3*)malloc(3 * (0.5 + 1) * (0.5 + 1) * sizeof(glm::vec3));
-    while (cube_vertices[index + 2] != NULL)
-    {
-        glm::vec3 normal = normalize(cross(glm::vec3(cube_vertices[index + 2] - cube_vertices[index + 2]), glm::vec3(cube_vertices[index] - cube_vertices[index + 1])));
-        normalMap[index] = normal;
-        index++;
-    }
-    return normalMap;
-}
-*/
 
 static GLuint createCube(GLfloat halfSideLength)
 {
@@ -488,174 +481,196 @@ static GLuint createPatch(void)//Necessario para tesselation shader
     return vao;
 }
 */
-static void createProjScene(void) 
+static void createShadowMap(void)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glDrawBuffer(GL_NONE); //sem buffer de cor
+    glReadBuffer(GL_NONE); 
+    //light "camera"
+    sproj = glm::perspective(
+        glm::radians(40.0f), 1.0f, 1.0f, 10.0f
+    );
+    sview = glm::lookAt(
+        glm::vec3(light[0], light[1], light[2]),//lightpos
+        glm::vec3(0.0f, 0.0f, 0.0f),//center
+        glm::vec3(0.0f, 2.0f, 0.0f)//up
+    );
     glViewport(0, 0, DIM, DIM); //shadow map dimension
     glClear(GL_DEPTH_BUFFER_BIT);
-    glUseProgram(s_pid); //shaders para gerar mapa de sombra
-    //projection matrix
+
+    //-------------------------Matriz de proj--------------------------------//
+    //-----------------------------------------------------------------------//
     loadProjectionMatrix(f_pid);
-    //bind texture
-    GLint loc_sampler = glGetUniformLocation(f_pid, "smile");
+
+    glUseProgram(s_pid);
+    GLint loc_view = glGetUniformLocation(s_pid, "view");
+    GLint loc_proj = glGetUniformLocation(s_pid, "proj");
+ 
+    glUniformMatrix4fv(loc_view, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(loc_proj, 1, GL_FALSE, glm::value_ptr(proj));
+ 
+   //----------------Bind da Textura de profundindade ----------------------//
+   //-----------------------------------------------------------------------//
+    GLint loc_sampler = glGetUniformLocation(f_pid, "map");
     glUniform1i(loc_sampler, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depth);
 
-
-    glPolygonOffset(2.0f,2.0f);
+    glPolygonOffset(2.0f, 2.0f);
     glEnable(GL_POLYGON_OFFSET_FILL);
     glCullFace(GL_FRONT);
     glEnable(GL_CULL_FACE);
 
-
-    //-------------------------Criando esfera1-------------------------------//
+    //-------------------------Criando esfera Central-------------------------------//
     //-----------------------------------------------------------------------//
     glm::mat4 sphere_model = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
         glm::vec3(0.0f, 1.85f, 0.0f));
     sphere_model = glm::scale(sphere_model, glm::vec3(1.5f)); // altera escala do desenho
-    //f_model = glm::rotate(f_model, -theta2, glm::vec3(0.0f,1.0f,0.0f)); //Rotaciona a esfera via func idle
-    /*glm::vec4 maEsfera(0.2f, 0.2f, 0.2f, 1.0f);
-    glm::vec4 mdEsfera(1.0f, 1.0f, 1.0f, 1.0f);
-    glm::vec4 msEsfera(0.5f, 0.5f, 0.5f, 1.0f);
-    loadMaterial(f_pid, f_index, 2, maEsfera, mdEsfera, msEsfera);*/
-    loadMatrices(s_pid, sphere_model);
+    loadShadowMatrices(s_pid, sphere_model);
     glBindVertexArray(sphere_vao);
     glDrawElements(GL_TRIANGLES, 6 * R * R, GL_UNSIGNED_INT, 0);
 
-    //-------------------------Criando esfera2-------------------------------//
+    //-------------------------Criando cubo Direita-------------------------------//
     //-----------------------------------------------------------------------//
-    glm::mat4 sphere_model2 = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
+    glm::mat4 cube_modelDir = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
         glm::vec3(2.3f, 1.35f, 0.0f));
-    sphere_model2 = glm::scale(sphere_model2, glm::vec3(1.0f)); // altera escala do desenho
-    //f_model = glm::rotate(f_model, -theta2, glm::vec3(0.0f,1.0f,0.0f)); //Rotaciona a esfera via func idle
-    /*glm::vec4 maEsfera2(0.2f, 0.2f, 0.2f, 1.0f);
-    glm::vec4 mdEsfera2(1.0f, 1.0f, 1.0f, 1.0f);
-    glm::vec4 msEsfera2(0.5f, 0.5f, 0.5f, 1.0f);
-    loadMaterial(f_pid, f_index, 2, maEsfera2, mdEsfera2, msEsfera2);*/
-    loadMatrices(s_pid, sphere_model2);
-    glBindVertexArray(sphere_vao);
-    glDrawElements(GL_TRIANGLES, 6 * R * R, GL_UNSIGNED_INT, 0);
-
-    //-------------------------Criando esfera3-------------------------------//
-    //-----------------------------------------------------------------------//
-    glm::mat4 sphere_model3 = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
-        glm::vec3(-2.3f, 1.35f, 0.0f));
-    sphere_model3 = glm::scale(sphere_model3, glm::vec3(1.0f)); // altera escala do desenho
-    //f_model = glm::rotate(f_model, -theta2, glm::vec3(0.0f,1.0f,0.0f)); //Rotaciona a esfera via func idle
-   /*glm::vec4 maEsfera3(0.5f, 0.8f, 0.2f, 1.0f);
-    glm::vec4 mdEsfera3(1.0f, 1.0f, 1.0f, 1.0f);
-    glm::vec4 msEsfera3(0.5f, 0.5f, 0.5f, 1.0f);
-    loadMaterial(f_pid, f_index, 2, maEsfera3, mdEsfera3, msEsfera3);*/
-    loadMatrices(s_pid, sphere_model3);
-    glBindVertexArray(sphere_vao);
-    glDrawElements(GL_TRIANGLES, 6 * R * R, GL_UNSIGNED_INT, 0);
-
-    //-------------------------Criando Mesa-------------------------------//
-    //-----------------------------------------------------------------------//
-    glm::mat4 cube_model = glm::translate(glm::mat4(1.0),
-        glm::vec3(0.0f, 0.0f, 0.0f));
-    cube_model = glm::scale(cube_model, glm::vec3(6.5f, 0.7f, 6.5f));
-    /*glm::vec4 maMesa(0.0f, 0.0f, 0.0f, 0.0f);
-    glm::vec4 mdMesa(1.0f, 0.0f, 0.0f, 1.0f);
-    glm::vec4 msMesa(0.0f, 0.0f, 1.0f, 1.0f);
-
-    loadMaterial(f_pid, f_index, 2, maMesa, mdMesa, msMesa);*/
-    loadMatrices(s_pid, cube_model);
-
+    cube_modelDir = glm::scale(cube_modelDir, glm::vec3(1.0f)); // altera escala do desenho
+    loadShadowMatrices(s_pid, cube_modelDir);
     glBindVertexArray(cube_vao);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
+    //-------------------------Criando esfera Esquerda-------------------------------//
+    //-----------------------------------------------------------------------//
+    glm::mat4 sphere_modelEsq = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
+        glm::vec3(-2.3f, 1.35f, 0.0f));
+    sphere_modelEsq = glm::scale(sphere_modelEsq, glm::vec3(1.0f)); // altera escala do desenho
+    loadShadowMatrices(s_pid, sphere_modelEsq);
+    glBindVertexArray(sphere_vao);
+    glDrawElements(GL_TRIANGLES, 6 * R * R, GL_UNSIGNED_INT, 0);
+
+
+    //-------------------------Criando Mesa-------------------------------//
+    //-----------------------------------------------------------------------//
+    /*glm::mat4 mesa_model = glm::translate(glm::mat4(1.0),
+        glm::vec3(0.0f, 0.0f, -1.0f));
+    mesa_model = glm::scale(mesa_model, glm::vec3(6.5f, 6.5f, 6.5f));
+    //cube_model = glm::rotate(mesa_model, 90.0f, glm::vec3(1.0, 0.0f, 0.0f));
+    loadShadowMatrices(s_pid, mesa_model);
+
+    //glBindVertexArray(cube_vao);
+    //glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(quad_vao);
+    glUseProgram(s_pid);
+    drawQuadScreen();*/
     glDisable(GL_CULL_FACE);
     glDisable(GL_POLYGON_OFFSET_FILL);
+
 }
 
 static void createScene(void)
-{   
+{
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDrawBuffer(GL_BACK);
     glViewport(0, 0, w_s, h_s); //window dimension
     glClearColor(0.8f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glm::vec4 leye = glm::vec4(-peye[0], -peye[1], -peye[2], 1.0f);
-    GLint f_loc_leye = glGetUniformLocation(f_pid, "leye");
     glUseProgram(f_pid);
-    glUniform4fv(f_loc_leye, 1, glm::value_ptr(leye));
+    GLint loc_view = glGetUniformLocation(f_pid, "view");
+    GLint loc_proj = glGetUniformLocation(f_pid, "proj");
+    GLint loc_sampler = glGetUniformLocation(f_pid, "map");
+    glUniformMatrix4fv(loc_view, 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(loc_proj, 1, GL_FALSE, glm::value_ptr(proj));
 
-    GLint loc_sampler = glGetUniformLocation(f_pid, "smile");
+
+    //-------------------------Bind Proj Texture Esferas-------------------------------//
+    //-----------------------------------------------------------------------//
     glUniform1i(loc_sampler, 1);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, texSmile);
-    //-------------------------Criando esfera1-------------------------------//
-    //-----------------------------------------------------------------------//
+
+    //-------------------------Criando esfera Central-------------------------------//
+    //-----------------------------------------------------------------------------//
     glm::mat4 sphere_model = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
-        glm::vec3(0.0f,1.85f,0.0f));
+        glm::vec3(0.0f, 1.85f, 0.0f));
     sphere_model = glm::scale(sphere_model, glm::vec3(1.5f)); // altera escala do desenho
     //f_model = glm::rotate(f_model, -theta2, glm::vec3(0.0f,1.0f,0.0f)); //Rotaciona a esfera via func idle
-    glm::vec4 maEsfera (0.2f, 0.2f, 0.2f, 1.0f);
-    glm::vec4 mdEsfera (1.0f, 0.0f, 0.0f, 1.0f);
-    glm::vec4 msEsfera (0.0f, 0.0f, 1.0f, 1.0f);
-    loadMaterial(f_pid, f_index, 2, maEsfera, mdEsfera, msEsfera);
-    loadProjectionMatrix(f_pid);
+    glm::vec4 maEsfera(0.2f, 0.2f, 0.2f, 1.0f);
+    glm::vec4 mdEsfera(1.0f, 1.0f, 1.0f, 1.0f);
+    glm::vec4 msEsfera(0.0f, 0.0f, 1.0f, 1.0f);
+    loadMaterial(f_pid, f_index, 3, maEsfera, mdEsfera, msEsfera);
     loadMatrices(f_pid, sphere_model);
     glBindVertexArray(sphere_vao);
     glDrawElements(GL_TRIANGLES, 6 * R * R, GL_UNSIGNED_INT, 0);
 
-
-    //-------------------------Criando esfera2-------------------------------//
+    //-------------------------Bind Proj Texture Esferas-------------------------------//
     //-----------------------------------------------------------------------//
-    glm::mat4 sphere_model2 = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
+    /*glUniform1i(loc_sampler, 2);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, texSmile);*/
+
+   //-------------------------Criando cubo Direita-------------------------------//
+   //-----------------------------------------------------------------------//
+    glm::mat4 cube_modelDir = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
         glm::vec3(2.3f, 1.35f, 0.0f));
-    sphere_model2 = glm::scale(sphere_model2, glm::vec3(1.0f)); // altera escala do desenho
+    cube_modelDir = glm::scale(cube_modelDir, glm::vec3(1.0f)); // altera escala do desenho
     //f_model = glm::rotate(f_model, -theta2, glm::vec3(0.0f,1.0f,0.0f)); //Rotaciona a esfera via func idle
     glm::vec4 maEsfera2(0.2f, 0.2f, 0.2f, 1.0f);
     glm::vec4 mdEsfera2(1.0f, 0.0f, 1.0f, 1.0f);
     glm::vec4 msEsfera2(0.5f, 0.5f, 0.5f, 1.0f);
-    loadMaterial(f_pid, f_index, 2, maEsfera2, mdEsfera2, msEsfera2);
-    loadMatrices(f_pid, sphere_model2);
-    glBindVertexArray(sphere_vao);
-    glDrawElements(GL_TRIANGLES, 6 * R * R, GL_UNSIGNED_INT, 0);
+    loadMaterial(f_pid, f_index, 3, maEsfera2, mdEsfera2, msEsfera2);
+    loadMatrices(f_pid, cube_modelDir);
+    glBindVertexArray(cube_vao);
+    //glDrawElements(GL_TRIANGLES, 6 * R * R, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
-    //-------------------------Criando esfera3-------------------------------//
+    //-------------------------Criando esfera Esquerda-------------------------------//
     //-----------------------------------------------------------------------//
-    glm::mat4 sphere_model3 = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
+
+    glm::mat4 sphere_modelEsq = glm::translate(glm::mat4(1.0f), // Altera posicao do desenho 3D
         glm::vec3(-2.3f, 1.35f, 0.0f));
-    sphere_model3 = glm::scale(sphere_model3, glm::vec3(1.0f)); // altera escala do desenho
+    sphere_modelEsq = glm::scale(sphere_modelEsq, glm::vec3(1.0f)); // altera escala do desenho
     //f_model = glm::rotate(f_model, -theta2, glm::vec3(0.0f,1.0f,0.0f)); //Rotaciona a esfera via func idle
     glm::vec4 maEsfera3(0.2f, 0.2f, 0.2f, 1.0f);
     glm::vec4 mdEsfera3(0.0f, 1.0f, 1.0f, 1.0f);
     glm::vec4 msEsfera3(0.5f, 0.5f, 0.5f, 1.0f);
-    loadMaterial(f_pid, f_index, 2, maEsfera3, mdEsfera3, msEsfera3);
-    loadMatrices(f_pid, sphere_model3);
+    loadMaterial(f_pid, f_index, 3, maEsfera3, mdEsfera3, msEsfera3);
+    loadMatrices(f_pid, sphere_modelEsq);
     glBindVertexArray(sphere_vao);
     glDrawElements(GL_TRIANGLES, 6 * R * R, GL_UNSIGNED_INT, 0);
 
+    //-------------------------Bind Proj Texture Mesa-------------------------------//
+    //-----------------------------------------------------------------------//
+    glUniform1i(loc_sampler, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, depth);
     //-------------------------Criando Mesa-------------------------------//
     //-----------------------------------------------------------------------//
-    glm::mat4 cube_model = glm::translate(glm::mat4(1.0),
-        glm::vec3(0.0f, 0.0f, 0.0f));
-    cube_model = glm::scale(cube_model, glm::vec3(6.5f, 0.7f, 6.5f));
+    glm::mat4 mesa_model = glm::translate(glm::mat4(1.0),
+        glm::vec3(0.0f, 0.0f, -1.0f));
+    mesa_model = glm::scale(mesa_model, glm::vec3(5.5f, 5.5f, 5.5f));
+    mesa_model = glm::rotate(mesa_model,90.0f,glm::vec3(1.0,0.0f,0.0f));
     glm::vec4 maMesa(0.2f, 0.2f, 0.2f, 1.0f);
     glm::vec4 mdMesa(1.0f, 1.0f, 1.0f, 1.0f);
     glm::vec4 msMesa(0.5f, 0.5f, 0.5f, 1.0f);
 
-    loadMaterial(f_pid, f_index, 2, maMesa, mdMesa, msMesa);
-    loadMatrices(f_pid, cube_model);
+    loadMaterial(f_pid, f_index, 3, maMesa, mdMesa, msMesa);
+    loadMatrices(f_pid, mesa_model);
 
-    glBindVertexArray(cube_vao);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-
+    //glBindVertexArray(cube_vao);
+    //glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    //glBindVertexArray(quad_vao);
+    glUseProgram(f_pid);
+    drawQuadScreen();
 }
 
-static void setProgram ()
+static void setProgram()
 {
     GLuint vid = CreateShader(GL_VERTEX_SHADER, "vert.glsl");
     GLuint s_vid = CreateShader(GL_VERTEX_SHADER, "vertShadow.glsl");
     GLuint fid = CreateShader(GL_FRAGMENT_SHADER, "frag.glsl");
     GLuint s_fid = CreateShader(GL_FRAGMENT_SHADER, "fragShadow.glsl");
-    f_pid = CreateProgram(vid,fid,0);
+    f_pid = CreateProgram(vid, fid, 0);
     s_pid = CreateProgram(s_vid, s_fid, 0);
 }
 
@@ -666,30 +681,27 @@ static void setCamera()
     glGetIntegerv(GL_VIEWPORT, window);
     float ratio = (float)window[2] / window[3];
     proj = glm::perspective(
-        glm::radians(70.0f), ratio, 1.0f, 10.0f
+        glm::radians(90.0f), ratio, 1.0f, 10.0f
     );
     view = M * glm::lookAt(
         glm::vec3(viewer_pos[0], viewer_pos[1], viewer_pos[2]), // eye
         glm::vec3(0.0f, 0.0f, 0.0f), // center
-        glm::vec3(0.0f, 1.0f, 0.0f) // up
+        glm::vec3(0.0f, 2.0f, 0.0f) // up
     );
     glm::vec4 origin = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
     peye = glm::vec3(glm::inverse(view) * origin);
+    //-------------------------Sendind ligthpos to shader-------------------------------//
+    //---------------------------------------------------------------------------------//
+    glm::vec4 leye = glm::vec4(light[0], light[1], light[2], 1.0f);
+    GLint f_loc_leye = glGetUniformLocation(f_pid, "leye");
+    glUseProgram(f_pid);
+    glUniform4fv(f_loc_leye, 1, glm::value_ptr(leye));
 
-    //GLint f_loc_leye = glGetUniformLocation(f_pid, "leye");
-    //glUseProgram(f_pid);
-    //glUniform4fv(f_loc_leye, 1, glm::value_ptr(peye));
-
-    //light "camera"
-    sproj = glm::perspective(
-        glm::radians(35.0f), 1.0f, 1.0f, 10.0f
-    );
-    sview = glm::lookAt(
-        glm::vec3(light[0], light[1], light[2]),//lightpos
-        glm::vec3(0.0f, 0.0f, 0.0f),//center
-        glm::vec3(0.0f, 1.0f, 0.0f)//up
-    );
-    createProjScene();
+    //-------------------------Sendind eyepos to shader-------------------------------//
+    //---------------------------------------------------------------------------------//
+    GLint f_loc_peye = glGetUniformLocation(f_pid, "peye");
+    glUseProgram(f_pid);
+    glUniform4fv(f_loc_peye, 1, glm::value_ptr(peye));
 }
 
 static void initialize()
@@ -701,39 +713,42 @@ static void initialize()
     }
     printf("OpenGL version: %s\n", glGetString(GL_VERSION));
 
-    glClearColor(1.0f,1.0f,1.0f,1.0f);          //Inicializa com a cor de tela branca
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);          //Inicializa com a cor de tela branca
     glEnable(GL_DEPTH_TEST);
     texSmile = CreateTexture2D("smile.png");
-    sphere_vao = createSphere(R,R);             // Cria vao de esfera
-    cube_vao = createCube(0.5f); // Cria Vao de cubo no centro
+    texEarth = CreateTexture2D("earth.jpg");
+    //loc_sampler = glGetUniformLocation(f_pid, "map");
+    sphere_vao = createSphere(R, R);             // Cria vao de esfera
+    cube_vao = createCube(0.5f);                 // Cria Vao de cubo no centro
+    quad_vao = createQuadScreen();               // Cria Vao de quad no centro
     //sky_vao = createSkyBox();
     //patch_vao = createPatch();
-    setProgram();                               // Cria f_pid
-    //create depth texture
-    depth = CreateDepthTexture(DIM,DIM);
-    //----------------------create fbo-------------------------------//
+    setProgram();                                // Cria f_pid
+    depth = CreateDepthTexture(DIM, DIM);        //create depth texture
+    //----------------------Create fbo-------------------------------//
     //----------------------------------------------------------------------//
-    glGenFramebuffers(1,&fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER,fbo);
-    glFramebufferTexture(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT, depth,0);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) 
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depth, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
         printf("Framebuffer not complete\n");
         exit(1);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER,0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     //----------------------Definindo material-------------------------------//
     //----------------------------------------------------------------------//
     ubuffer = CreateBuffer(GL_UNIFORM_BUFFER, sizeof(Material), (GLvoid*)&mat);
     f_index = glGetUniformBlockIndex(f_pid, "Material");
-    glBindBufferBase(GL_UNIFORM_BUFFER, 2, ubuffer);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 3, ubuffer);
 
 }
 
 static void display(void)//GLFWwindow * win
 {
     setCamera();
+    createShadowMap();
     createScene();
     glutSwapBuffers();
 
@@ -827,8 +842,8 @@ static void motionCB(int x, int y) {
     {
         aux = glm::rotate(aux, theta, glm::vec3(ax, ay, az));
     }
-    aux = glm::translate(aux,glm::vec3(0.0f, 0.0f, d));
-    M = aux * M; 
+    aux = glm::translate(aux, glm::vec3(0.0f, 0.0f, d));
+    M = aux * M;
     glPopMatrix();
 
     x_0 = (float)x;
@@ -856,7 +871,7 @@ static void mouseCB(int button, int state, int x, int y) {
 
 // Main function
 int main(int argc, char* argv[])
-{   
+{
     // open GLUT 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGB);
